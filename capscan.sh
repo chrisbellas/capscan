@@ -1,11 +1,11 @@
-##!/bin/bash
+#!/bin/bash
 # Capscan_PLV: Scans all gene predictions (.faa files) for PLV or NCLDV-like MCP genes and deposits then in a file.
-# Usage: Capscan_PLV.sh <genes.faa>    (gene predictions file should end in .faa)
+# Usage: Capscan_PLV.sh <genes.faa>
 # prerequisites: seqkit, HH-suite
 
 # change location of HMM profile databases
 MCPSCAN="PLV_Viro_Yara_NCLDV_MCPs_V3.1.hmm" # 50 profiles to scan for MCP genes (quick)
-MCPCLUSTER="VC_MCPs.hmm" # 293 profiles to determine closest viral cluster (Slow and runs on results from above) (Includes 59 Tectivirus profiles - just in case)
+MCPCLUSTER="VC_MCPs.hmm" # 293 profiles to determine closest viral cluster (Slow and runs on results from above) (Includes 59 Tectivirus profiles - just for fun)
 
 #check for $1 input
 if [ -z "$1" ]; then
@@ -27,12 +27,17 @@ if ! command -v hmmsearch &> /dev/null; then
 fi
 
 #strip basename
-base=$(basename $1 .faa)
-echo $base
+# base=$(basename "$1" .faa)
+base="${1%.*}"
+
+# echo $base  # Uncomment for debugging: shows base filename
+
+# set number of CPUs to use (default: 4)
+CPU=${CPU:-4}
 
 # scan for capsids
 echo 'Scanning for MCP genes'
-hmmsearch --tblout $base'_capscan.tblout' -o $base'_capscan_out' -E 1e-9 --cpu 12 $MCPSCAN $1
+hmmsearch --tblout $base'_capscan.tblout' -o $base'_capscan_out' -E 1e-9 --cpu $CPU $MCPSCAN $1
 
 echo 'counting MCP hits'
 count=$(cat $base'_capscan.tblout' | awk '{print $1}' | grep -v '#' | sort -nk 1 | uniq | wc -l) 
@@ -53,7 +58,12 @@ grep -v '#' $base'_capscan_besthit.tblout' |grep -v GVOG | awk '{print $1}' >$ba
 cat $base'_capscan_besthit.tblout'  | grep -v '#' |grep -v GVOG | awk '$6>=75 {print $1}' >$base'_PLV75.list'
 
 # create list of weak hits
-grep -v -f $base'_PLV75.list' $base'_PLV.list' >$base'_PLV_weak_hits.list'
+if [ -s "$base"_PLV75.list ] && [ -s "$base"_PLV.list ]; then
+	grep -v -f "$base"_PLV75.list "$base"_PLV.list >"$base"_PLV_weak_hits.list
+else
+	# If either file is empty, create an empty weak hits list
+	>"$base"_PLV_weak_hits.list
+fi
 
 
 seqkit grep -f $base'_PLV_weak_hits.list' $base'_MCP.faa' >$base'_PLV_weak_hits.faa'
@@ -76,13 +86,13 @@ echo 'Finding MCP cluster'
 #Find closest MCP cluster
 
 if [ "$count1" -gt 0 ]; then
-    	#Perform cluster search
-	hmmsearch --tblout $base'_clusscan.tblout' -o $base'_clusscan_out' -E 1e-9 --cpu 10 $MCPCLUSTER $base'_PLVMCP_strong_hits.faa'
+		#Perform cluster search
+	hmmsearch --tblout $base'_clusscan.tblout' -o $base'_clusscan_out' -E 1e-9 --cpu $CPU $MCPCLUSTER $base'_PLVMCP_strong_hits.faa'
 	#parse besthits from  MCP cluster scan
 	awk '{print $1, $6, $0}' $base'_clusscan.tblout'  | sort -k1,1 -k2,2nr |  awk '!seen[$1]++ {$1=""; $2=""; print $0}' | sed 's/ //' | awk '{print $1,$2,$3,$4,$5,$6}' | tr ' ' '\t' >$base'_clusscan_besthit.tblout'
 	else
-    	# continue
-    	echo "PLV Count is 0, Skipping cluster search"
+		# continue
+		echo "PLV Count is 0, Skipping cluster search"
 fi
 
 echo $base'_capscan_besthit.tblout is the capsid supergroup hit file  (evalue, bitscore)'
@@ -92,4 +102,4 @@ echo $base'_PLVMCP_strong_hits.faa are PLV MCPs'
 #cleanup
 rm $base'_PLV_weak_hits.list'
 mv $base'_PLV75.list' $base'_PLV.list'
-rm $base'_MCP.faa'
+rm $base'_MCP.faa'	
