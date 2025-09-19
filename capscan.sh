@@ -1,7 +1,10 @@
 #!/bin/bash
-# Capscan_PLV: Scans all gene predictions (.faa files) for PLV or NCLDV-like MCP genes and deposits then in a file.
-# Usage: Capscan_PLV.sh <genes.faa>
+# capscan: Scans all gene predictions (.faa files) for PLV or NCLDV-like MCP genes, classifies the PLV and deposits then in a file.
+# Usage: capscan.sh <genes.faa>
 # prerequisites: seqkit, HH-suite
+
+VERSION="0.1.0"
+echo "capscan version $VERSION"
 
 # change location of HMM profile databases
 MCPSCAN="PLV_Viro_Yara_NCLDV_MCPs_V3.1.hmm" # 50 profiles to scan for MCP genes (quick)

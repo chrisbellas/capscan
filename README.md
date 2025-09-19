@@ -1,5 +1,5 @@
 # capscan
-Scan for Polinton-like virus MCP genes and deposits then in a file.
+Scan for Polinton-like virus MCP genes, classify them and deposit in a file.
 
 Usage: Capscan_PLV.sh <amino_acids.faa>
 prerequisites: seqkit, HH-suite
